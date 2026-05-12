@@ -1,0 +1,35 @@
+body {
+    background-color: #F7F4F3;
+}
+
+* {
+    color:#5B2333;
+    font-family: 'Trebuchet MS', 'Lucida Sans Unicode', 'Lucida Grande', 'Lucida Sans', Arial, sans-serif;
+}
+
+.header{
+    text-align: center;
+    font-size: 32px;
+    
+}
+
+.calendar {
+    padding: 0px 120px;
+}
+
+.day {
+    padding: 6px;
+    margin: 2px;
+}
+
+.activity-log {
+    padding: 5px 40px;
+    display: grid;
+    grid-template-columns: auto auto;
+    justify-content: center;
+    gap: 100px;
+}
+
+.actual-day {
+    padding: 20px 120px;
+}

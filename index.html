@@ -7,6 +7,7 @@
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
+
     <!-- Header -->
     <div class="header">
         <h1>75 Hard Challenge</h1>
@@ -99,13 +100,13 @@
 
     </div>
 
-    <div>
+    <div class="actual-day">
         <h2>Día: </h2>
     </div>
 
     <!-- To Do List -->
     <div class="activity-log">
-        <div>
+        <div class="to-do-list">
             <h3>75 Hard Clau</h3>
             <ul class="task-list">
                 <li>
@@ -153,7 +154,7 @@
 
         </div>
 
-        <div>
+        <div class="to-do-list">
             <h3>75 Hard Hugo</h3>
             <ul class="task-list">
                 <li>
@@ -191,13 +192,14 @@
                     </label>
                 </li>
             </ul>
+
+            <!-- Subir imagen -->
+            <input type="file" class="image-input" accept="image/*">
+    
+            <!-- Vista de imágenes -->
+            <div id="image-gallery"></div>
+
         </div>
-
-        <!-- Subir imagen -->
-        <input type="file" class="image-input" accept="image/*">
-
-        <!-- Vista de imágenes -->
-        <div id="image-gallery"></div>
 
     </div>
 
