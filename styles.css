@@ -33,3 +33,32 @@ body {
 .actual-day {
     padding: 20px 120px;
 }
+
+/* La barra de fondo (gris) */
+.progress-bar {
+  width: 100%;
+  height: 4px;
+  background-color: #ddd;
+  border-radius: 2px;
+  margin-top: 4px;
+}
+
+
+
+/* Codigo AI */
+
+
+/* El relleno de la barra (verde) */
+.progress-fill {
+  height: 100%;
+  width: 0%;           /* Empieza en 0, JS lo va cambiando */
+  background-color: green;
+  border-radius: 2px;
+  transition: width 0.3s; /* Animación suave al llenarse */
+}
+
+/* El día seleccionado se ve diferente */
+.day.selected {
+  border: 2px solid blue;
+  background-color: #e8f0ff;
+}
