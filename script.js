@@ -16,13 +16,19 @@ async function supabaseQuery(method, path, body = null) {
     },
   };
   if (body) options.body = JSON.stringify(body);
-  const res = await fetch(SUPABASE_URL + '/rest/v1/' + path, options);
-  if (!res.ok) {
-    const err = await res.text();
-    console.error('Supabase error:', err);
+
+  try {
+    const res = await fetch(SUPABASE_URL + '/rest/v1/' + path, options);
+    if (!res.ok) {
+      const err = await res.text();
+      console.error('Supabase error:', err);
+      return null;
+    }
+    return res.status === 204 ? null : await res.json();
+  } catch (e) {
+    console.error('Fetch error:', e);
     return null;
   }
-  return res.status === 204 ? null : await res.json();
 }
 
 
@@ -38,11 +44,16 @@ let diaActual = null;
 const botonesDia = document.querySelectorAll('.day');
 
 botonesDia.forEach(function(boton) {
-  boton.addEventListener('click', async function() {
+  boton.addEventListener('click', async function(e) {
+    // CRÍTICO: evita que el <button> haga submit o recargue la página
+    e.preventDefault();
+
     botonesDia.forEach(function(b) { b.classList.remove('selected'); });
     boton.classList.add('selected');
+
     diaActual = boton.getAttribute('data-day');
     document.querySelector('.actual-day h2').textContent = 'Día: ' + diaActual;
+
     await cargarDia(diaActual);
   });
 });
@@ -57,6 +68,7 @@ async function cargarDia(dia) {
     'progreso?dia=eq.' + dia + '&select=usuario,tarea,completada'
   );
 
+  // Construimos un mapa  "usuario-tarea" → true/false
   const mapa = {};
   if (filas) {
     filas.forEach(function(fila) {
@@ -64,13 +76,14 @@ async function cargarDia(dia) {
     });
   }
 
+  // Aplicamos el estado a cada checkbox
   const checkboxes = document.querySelectorAll('input[type="checkbox"]');
   checkboxes.forEach(function(checkbox) {
     const key = checkbox.getAttribute('data-user') + '-' + checkbox.getAttribute('data-task');
     checkbox.checked = mapa[key] === true;
   });
 
-  // El DOM ya refleja el día cargado, actualizamos su barra
+  // DOM ya actualizado → pintamos la barra de este día
   actualizarBarraDesdeDOM(diaActual);
 }
 
@@ -92,14 +105,16 @@ checkboxes.forEach(function(checkbox) {
     const tarea   = checkbox.getAttribute('data-task');
     const valor   = checkbox.checked;
 
-    await supabaseQuery('POST', 'progreso', {
+    const resultado = await supabaseQuery('POST', 'progreso', {
       dia:        parseInt(diaActual),
       usuario:    usuario,
       tarea:      tarea,
       completada: valor,
     });
 
-    // DOM ya actualizado por el evento, solo pintamos la barra
+    console.log('Guardado en Supabase:', { dia: diaActual, usuario, tarea, valor, resultado });
+
+    // DOM ya tiene el nuevo estado → pintamos la barra
     actualizarBarraDesdeDOM(diaActual);
   });
 });
@@ -109,36 +124,33 @@ checkboxes.forEach(function(checkbox) {
 // 5. FUNCIONES DE BARRA DE PROGRESO
 // ─────────────────────────────────────────
 
-// Pinta la barra de UN día en el calendario dado un número de completadas
+// Pinta la barra de un día dado cuántas tareas están completadas
 function pintarBarra(dia, completadas) {
   const porcentaje = (completadas / 10) * 100;
-  const boton = document.querySelector('.day[data-day="' + dia + '""]');
+  const boton = document.querySelector('.day[data-day="' + dia + '"]');
   if (boton) {
     boton.querySelector('.progress-fill').style.width = porcentaje + '%';
   }
 }
 
-// Cuenta los checkboxes marcados en el DOM y pinta la barra del día activo
-// Válido porque el DOM siempre refleja el día que está cargado
+// Cuenta los checkboxes marcados en el DOM y pinta la barra del día activo.
+// Funciona porque el DOM siempre refleja el día que está cargado en pantalla.
 function actualizarBarraDesdeDOM(dia) {
   const completadas = [...document.querySelectorAll('input[type="checkbox"]')]
     .filter(function(cb) { return cb.checked; }).length;
   pintarBarra(dia, completadas);
 }
 
-// Carga TODOS los días desde Supabase y pinta sus barras
-// Se llama una sola vez al abrir la página
+// Una sola query al abrir la página → pinta las barras de los 75 días
 async function cargarTodasLasBarras() {
   const filas = await supabaseQuery('GET', 'progreso?completada=eq.true&select=dia');
   if (!filas) return;
 
-  // Contamos cuántas tareas completadas tiene cada día
   const conteo = {};
   filas.forEach(function(f) {
     conteo[f.dia] = (conteo[f.dia] || 0) + 1;
   });
 
-  // Pintamos todos los 75 días con sus datos reales
   for (let i = 1; i <= 75; i++) {
     pintarBarra(i, conteo[i] || 0);
   }
@@ -146,6 +158,6 @@ async function cargarTodasLasBarras() {
 
 
 // ─────────────────────────────────────────
-// 6. INICIO — dibuja todas las barras al abrir la página
+// 6. INICIO
 // ─────────────────────────────────────────
 cargarTodasLasBarras();
