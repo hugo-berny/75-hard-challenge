@@ -1,3 +1,26 @@
+const SUPABASE_URL = 'https://TU_PROYECTO.supabase.co';
+const SUPABASE_ANON_KEY = 'TU_ANON_KEY_AQUI';
+
+async function supabaseQuery(method, path, body = null) {
+  const options = {
+    method,
+    headers: {
+      'Content-Type': 'application/json',
+      'apikey': SUPABASE_ANON_KEY,
+      'Authorization': 'Bearer ' + SUPABASE_ANON_KEY,
+      'Prefer': method === 'POST' ? 'resolution=merge-duplicates' : '',
+    },
+  };
+  if (body) options.body = JSON.stringify(body);
+  const res = await fetch(SUPABASE_URL + '/rest/v1/' + path, options);
+  if (!res.ok) {
+    const err = await res.text();
+    console.error('Supabase error:', err);
+    return null;
+  }
+  return res.status === 204 ? null : await res.json();
+}
+
 // ─────────────────────────────────────────
 // 1. ESTADO GLOBAL
 // Aquí vivimos qué día está seleccionado
@@ -15,7 +38,7 @@ const botonesDia = document.querySelectorAll('.day');
 
 // A cada botón le ponemos un "oído" que escucha clics
 botonesDia.forEach(function(boton) {
-  boton.addEventListener('click', function() {
+  boton.addEventListener('click', async function() {
 
     // Quitamos la clase "selected" a todos los botones
     botonesDia.forEach(function(b) { b.classList.remove('selected'); });
@@ -30,7 +53,7 @@ botonesDia.forEach(function(boton) {
     document.querySelector('.actual-day h2').textContent = 'Día: ' + diaActual;
 
     // Cargamos los checkboxes de ese día
-    cargarDia(diaActual);
+    await cargarDia(diaActual);
   });
 });
 
@@ -39,29 +62,25 @@ botonesDia.forEach(function(boton) {
 // 3. CARGAR EL ESTADO DE LOS CHECKBOXES DE UN DÍA
 // ─────────────────────────────────────────
 
-function cargarDia(dia) {
-  // Leemos lo que hay guardado en localStorage para ese día
-  // Si no hay nada guardado, usamos un objeto vacío {}
-  const clave = 'dia-' + dia;
-  const guardado = localStorage.getItem(clave);
-  const estado = guardado ? JSON.parse(guardado) : {};
+async function cargarDia(dia) {
+  const filas = await supabaseQuery(
+    'GET',
+    'progreso?dia=eq.' + dia + '&select=usuario,tarea,completada'
+  );
 
-  // Agarramos todos los checkboxes
+  const mapa = {};
+  if (filas) {
+    filas.forEach(function(fila) {
+      mapa[fila.usuario + '-' + fila.tarea] = fila.completada;
+    });
+  }
+
   const checkboxes = document.querySelectorAll('input[type="checkbox"]');
-
   checkboxes.forEach(function(checkbox) {
-    const user = checkbox.getAttribute('data-user'); // "clau" o "hugo"
-    const task = checkbox.getAttribute('data-task'); // "workout", "pasos", etc.
-
-    // Si existe info guardada para este usuario y esta tarea, la aplicamos
-    if (estado[user] && estado[user][task]) {
-      checkbox.checked = true;
-    } else {
-      checkbox.checked = false; // Si no hay info, lo dejamos desmarcado
-    }
+    const key = checkbox.getAttribute('data-user') + '-' + checkbox.getAttribute('data-task');
+    checkbox.checked = mapa[key] === true;
   });
 
-  // Actualizamos las barras de progreso de todos los días
   actualizarTodasLasBarras();
 }
 
@@ -73,82 +92,62 @@ function cargarDia(dia) {
 const checkboxes = document.querySelectorAll('input[type="checkbox"]');
 
 checkboxes.forEach(function(checkbox) {
-  checkbox.addEventListener('change', function() {
+  checkbox.addEventListener('change', async function() {
+  if (!diaActual) {
+    alert('Primero selecciona un día del calendario');
+    checkbox.checked = false;
+    return;
+  }
 
-    // Si no hay ningún día seleccionado, no hacemos nada
-    if (!diaActual) {
-      alert('Primero selecciona un día del calendario');
-      checkbox.checked = false; // Revertimos el clic
-      return;
-    }
+  const usuario = checkbox.getAttribute('data-user');
+  const tarea   = checkbox.getAttribute('data-task');
+  const valor   = checkbox.checked;
 
-    const clave = 'dia-' + diaActual;
-    const guardado = localStorage.getItem(clave);
-    const estado = guardado ? JSON.parse(guardado) : {};
-
-    const user = checkbox.getAttribute('data-user');
-    const task = checkbox.getAttribute('data-task');
-
-    // Si no existe la sección del usuario, la creamos
-    if (!estado[user]) { estado[user] = {}; }
-
-    // Guardamos true o false según si está marcado o no
-    estado[user][task] = checkbox.checked;
-
-    // Escribimos de vuelta en localStorage
-    localStorage.setItem(clave, JSON.stringify(estado));
-
-    // Actualizamos la barra del día actual
-    actualizarBarra(diaActual);
+  await supabaseQuery('POST', 'progreso', {
+    dia:        parseInt(diaActual),
+    usuario:    usuario,
+    tarea:      tarea,
+    completada: valor,
   });
+
+  actualizarBarra(diaActual);
+});
 });
 
 
-// ─────────────────────────────────────────
-// 5. CALCULAR Y DIBUJAR LA BARRA DE PROGRESO
-// ─────────────────────────────────────────
+async function cargarTodasLasBarras() {
+  const filas = await supabaseQuery('GET', 'progreso?completada=eq.true&select=dia');
+  if (!filas) return;
 
-function actualizarBarra(dia) {
-  const clave = 'dia-' + dia;
-  const guardado = localStorage.getItem(clave);
-  const estado = guardado ? JSON.parse(guardado) : {};
+  const conteo = {};
+  filas.forEach(function(f) {
+    conteo[f.dia] = (conteo[f.dia] || 0) + 1;
+  });
 
-  // Contamos cuántas tareas hay en total (5 Clau + 5 Hugo = 10)
-  const totalTareas = 10;
-  let completadas = 0;
-
-  // Recorremos cada usuario y cada tarea y contamos los true
-  for (const user in estado) {
-    for (const task in estado[user]) {
-      if (estado[user][task] === true) {
-        completadas++;
-      }
+  for (let i = 1; i <= 75; i++) {
+    const completadas = conteo[i] || 0;
+    const porcentaje  = (completadas / 10) * 100;
+    const boton = document.querySelector('.day[data-day="' + i + '"]');
+    if (boton) {
+      boton.querySelector('.progress-fill').style.width = porcentaje + '%';
     }
   }
+}
 
-  // Calculamos el porcentaje
-  const porcentaje = (completadas / totalTareas) * 100;
-
-  // Encontramos el botón del día correspondiente
+function actualizarBarra(dia) {
+  let completadas = 0;
+  document.querySelectorAll('input[type="checkbox"]').forEach(function(cb) {
+    if (cb.checked) completadas++;
+  });
+  const porcentaje = (completadas / 10) * 100;
   const boton = document.querySelector('.day[data-day="' + dia + '"]');
   if (boton) {
-    // Dentro del botón buscamos el div progress-fill y le cambiamos el ancho
-    const barra = boton.querySelector('.progress-fill');
-    barra.style.width = porcentaje + '%';
+    boton.querySelector('.progress-fill').style.width = porcentaje + '%';
   }
 }
 
 function actualizarTodasLasBarras() {
-  // Recorremos los 75 días y actualizamos cada barra
-  for (let i = 1; i <= 75; i++) {
-    actualizarBarra(i);
-  }
+  if (diaActual) actualizarBarra(diaActual);
 }
 
-
-// ─────────────────────────────────────────
-// 6. AL CARGAR LA PÁGINA, DIBUJAR TODAS LAS BARRAS
-// ─────────────────────────────────────────
-
-// Esto se ejecuta una sola vez cuando la página abre
-actualizarTodasLasBarras();
+cargarTodasLasBarras();
