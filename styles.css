@@ -15,11 +15,19 @@ body {
 
 .calendar {
     padding: 0px 120px;
+    display: flex;
+    flex-wrap: wrap;
 }
 
 .day {
-    padding: 6px;
-    margin: 2px;
+  width: 36px;        /* tamaño fijo */
+  height: 36px;       /* mismo alto que ancho = cuadrado perfecto */
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box; /* padding incluido en el tamaño */
+  margin: 2px;
 }
 
 .activity-log {
@@ -28,6 +36,14 @@ body {
     grid-template-columns: auto auto;
     justify-content: center;
     gap: 100px;
+}
+
+@media (max-width: 768px) {
+  .activity-log {
+    grid-template-columns: 1fr; /* 1 columna en móvil */
+    gap: 30px;                  /* gap más pequeño también */
+    padding: 5px 16px;
+  }
 }
 
 .actual-day {
