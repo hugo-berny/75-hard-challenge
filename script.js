@@ -33,10 +33,22 @@ async function supabaseQuery(method, path, body = null) {
 
 
 // ─────────────────────────────────────────
-// 1. ESTADO GLOBAL
+// 1. ESTADO GLOBAL Y CONFIGURACIÓN
 // ─────────────────────────────────────────
 let diaActual = null;
+const FECHA_INICIO = new Date(2026, 4, 11); // 11 de Mayo de 2026 (Mes 4 en JS)
 
+/**
+ * Calcula la fecha real para un día específico del reto (1-75).
+ */
+function obtenerFechaParaDia(numeroDia) {
+  const fecha = new Date(FECHA_INICIO);
+  // Sumamos los días (el día 1 es la fecha de inicio, por eso restamos 1)
+  fecha.setDate(FECHA_INICIO.getDate() + (parseInt(numeroDia) - 1));
+  
+  const opciones = { weekday: 'long', day: 'numeric', month: 'long' };
+  return fecha.toLocaleDateString('es-ES', opciones);
+}
 
 // ─────────────────────────────────────────
 // 2. CLIC EN UN DÍA DEL CALENDARIO
@@ -52,7 +64,8 @@ botonesDia.forEach(function(boton) {
     boton.classList.add('selected');
 
     diaActual = boton.getAttribute('data-day');
-    document.querySelector('.actual-day h2').textContent = 'Día: ' + diaActual;
+    const fechaTexto = obtenerFechaParaDia(diaActual);
+    document.querySelector('.actual-day h2').textContent = `Día: ${diaActual} - ${fechaTexto}`;
 
     await cargarDia(diaActual);
   });
@@ -158,6 +171,40 @@ async function cargarTodasLasBarras() {
 
 
 // ─────────────────────────────────────────
-// 6. INICIO
+// 6. INICIO Y SELECCIÓN AUTOMÁTICA
 // ─────────────────────────────────────────
-cargarTodasLasBarras();
+
+/**
+ * Selecciona automáticamente el día del reto basado en la fecha actual.
+ */
+function seleccionarDiaActual() {
+  const hoy = new Date();
+  
+  // Normalizamos las fechas a medianoche para que el cálculo de días sea exacto
+  const inicio = new Date(FECHA_INICIO);
+  inicio.setHours(0, 0, 0, 0);
+  hoy.setHours(0, 0, 0, 0);
+
+  const diferenciaMs = hoy - inicio;
+  const diaDelReto = Math.floor(diferenciaMs / (1000 * 60 * 60 * 24)) + 1;
+
+  if (diaDelReto >= 1 && diaDelReto <= 75) {
+    const botonHoy = document.querySelector(`.day[data-day="${diaDelReto}"]`);
+    if (botonHoy) {
+      botonHoy.click();
+      // Hacer scroll hasta el botón seleccionado si es necesario
+      botonHoy.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  } else {
+    // Si el reto no ha empezado o ya terminó, selecciona el día 1 por defecto
+    const dia1 = document.querySelector('.day[data-day="1"]');
+    if (dia1) dia1.click();
+  }
+}
+
+async function inicializar() {
+  await cargarTodasLasBarras();
+  seleccionarDiaActual();
+}
+
+inicializar();
