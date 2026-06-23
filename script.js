@@ -118,6 +118,32 @@ checkboxes.forEach(function(checkbox) {
     const tarea   = checkbox.getAttribute('data-task');
     const valor   = checkbox.checked;
 
+    // Primero verifica si ya existe la fila
+    const existe = await supabaseQuery(
+      'GET',
+      `progreso?dia=eq.${diaActual}&usuario=eq.${usuario}&tarea=eq.${tarea}&select=id`
+    );
+
+    if (existe && existe.length > 0) {
+      // Ya existe → PATCH (update)
+      await supabaseQuery(
+        'PATCH',
+        `progreso?dia=eq.${diaActual}&usuario=eq.${usuario}&tarea=eq.${tarea}`,
+        { completada: valor }
+      );
+    } else {
+      // No existe → POST (insert)
+      await supabaseQuery('POST', 'progreso', {
+        dia:        parseInt(diaActual),
+        usuario:    usuario,
+        tarea:      tarea,
+        completada: valor,
+      });
+    }
+
+    actualizarBarraDesdeDOM(diaActual);
+  });
+
     const resultado = await supabaseQuery('POST', 'progreso', {
       dia:        parseInt(diaActual),
       usuario:    usuario,
