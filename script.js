@@ -118,7 +118,7 @@ checkboxes.forEach(function(checkbox) {
     const tarea   = checkbox.getAttribute('data-task');
     const valor   = checkbox.checked;
 
-    // Primero verifica si ya existe la fila
+    // Verifica si ya existe la fila
     const existe = await supabaseQuery(
       'GET',
       `progreso?dia=eq.${diaActual}&usuario=eq.${usuario}&tarea=eq.${tarea}&select=id`
@@ -141,19 +141,7 @@ checkboxes.forEach(function(checkbox) {
       });
     }
 
-    actualizarBarraDesdeDOM(diaActual);
-  });
-
-    const resultado = await supabaseQuery('POST', 'progreso', {
-      dia:        parseInt(diaActual),
-      usuario:    usuario,
-      tarea:      tarea,
-      completada: valor,
-    });
-
-    console.log('Guardado en Supabase:', { dia: diaActual, usuario, tarea, valor, resultado });
-
-    // DOM ya tiene el nuevo estado → pintamos la barra
+    console.log('Guardado en Supabase:', { dia: diaActual, usuario, tarea, valor });
     actualizarBarraDesdeDOM(diaActual);
   });
 });
